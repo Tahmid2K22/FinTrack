@@ -19,6 +19,7 @@
                     <span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-medium">ADMIN</span>
                     <div class="hidden sm:flex items-center gap-4">
                         <a href="{{ route('admin.users.index') }}" class="text-sm {{ request()->is('admin/users*') ? 'text-indigo-600 font-semibold' : 'text-gray-600 hover:text-gray-800' }}">Users</a>
+                        <a href="{{ route('admin.employees.index') }}" class="text-sm {{ request()->is('admin/employees*') ? 'text-indigo-600 font-semibold' : 'text-gray-600 hover:text-gray-800' }}">Employees</a>
                     </div>
                 </div>
                 <div class="flex items-center gap-4">

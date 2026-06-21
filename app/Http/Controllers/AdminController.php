@@ -10,10 +10,39 @@ use Illuminate\Validation\ValidationException;
 
 class AdminController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $users = DB::select('SELECT * FROM users ORDER BY id ASC');
-        return view('admin.users.index', compact('users'));
+        $search = trim((string) $request->input('search', ''));
+        $role   = trim((string) $request->input('role', ''));
+        $status = trim((string) $request->input('status', ''));
+
+        $where  = [];
+        $params = [];
+
+        if ($search !== '') {
+            $where[]           = "LOWER(name || ' ' || email) LIKE :search";
+            $params['search']  = '%' . strtolower($search) . '%';
+        }
+        if ($role !== '') {
+            $where[]        = 'role = :role';
+            $params['role'] = $role;
+        }
+        if ($status !== '') {
+            $where[]          = 'is_active = :status';
+            $params['status'] = (int) $status;
+        }
+
+        $sql = 'SELECT * FROM users';
+        if ($where) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+        $sql .= ' ORDER BY id ASC';
+
+        $users = DB::select($sql, $params);
+
+        $roles = DB::select('SELECT DISTINCT role FROM users ORDER BY role ASC');
+
+        return view('admin.users.index', compact('users', 'search', 'role', 'status', 'roles'));
     }
 
     public function create()
