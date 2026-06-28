@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
@@ -18,11 +18,14 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => ['required', 'email'],
+            'email'    => ['required', 'email'],
             'password' => ['required'],
         ]);
 
-        $user = User::findByEmail($request->email);
+        $user = DB::selectOne(
+            'SELECT id, password, is_active FROM users WHERE email = :email',
+            ['email' => $request->email]
+        );
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
@@ -50,26 +53,39 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'string', 'email', 'max:150'],
+            'name'     => ['required', 'string', 'max:100'],
+            'email'    => ['required', 'string', 'email', 'max:150'],
             'password' => ['required', 'confirmed', Password::min(8)],
         ]);
 
-        if (User::emailExists($request->email)) {
+        $exists = DB::selectOne(
+            'SELECT COUNT(*) AS cnt FROM users WHERE email = :email',
+            ['email' => $request->email]
+        );
+
+        if ($exists->cnt > 0) {
             throw ValidationException::withMessages([
                 'email' => ['The email has already been taken.'],
             ]);
         }
 
-        $user = User::createUser([
-            'name'      => $request->name,
-            'email'     => $request->email,
-            'password'  => Hash::make($request->password),
-            'role'      => 'client',
-            'is_active' => 1,
-        ]);
+        $maxId = DB::selectOne('SELECT NVL(MAX(id), 0) AS max_id FROM users');
+        $id = ($maxId->max_id ?? 0) + 1;
 
-        $request->session()->put('user_id', $user->id);
+        DB::statement(
+            'INSERT INTO users (id, name, email, password, role, is_active, created_at, updated_at)
+             VALUES (:id, :name, :email, :password, :role, :is_active, SYSTIMESTAMP, SYSTIMESTAMP)',
+            [
+                'id'        => $id,
+                'name'      => $request->name,
+                'email'     => $request->email,
+                'password'  => Hash::make($request->password),
+                'role'      => 'employee',
+                'is_active' => 1,
+            ]
+        );
+
+        $request->session()->put('user_id', $id);
 
         return redirect('/dashboard');
     }
